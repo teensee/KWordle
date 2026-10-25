@@ -8,13 +8,48 @@ var gameState = {
   letterGrid: [],
   letterKeyboard: {},
   wordLength: 5,
-  language: 0, // 0: English, 1: French, 2: German
+  language: 0, // index in languages
   message: ""
 };
 
-const languageList = ["English", "French", "German", "Spanish", "Portuguese", "Swedish", "Italian", "Latin", "Polish"];
+// Keyboard layouts; the last row is rendered between Enter and Backspace.
+// The order must match wordList/accepted in words.js.
+var latinRows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+// Russian: Ё is not used in the word lists and is typed as Е
+var russianLayout = {
+  rows: ["ЙЦУКЕНГШЩЗХЪ", "ФЫВАПРОЛДЖЭ", "ЯЧСМИТЬБЮ"],
+  normalize: { "Ё": "Е" }
+};
+var languages = [
+  { name: "English", rows: latinRows },
+  { name: "French", rows: latinRows },
+  { name: "German", rows: latinRows },
+  { name: "Spanish", rows: latinRows },
+  { name: "Portuguese", rows: latinRows },
+  { name: "Swedish", rows: ["QWERTYUIOPÅ", "ASDFGHJKLÖÄ", "ZXCVBNM"] },
+  { name: "Italian", rows: latinRows },
+  { name: "Latin", rows: latinRows },
+  { name: "Polish", rows: latinRows },
+  { name: "Русский", rows: russianLayout.rows, normalize: russianLayout.normalize }
+];
 
-const states={
+function currentLanguage() {
+  return languages[gameState.language];
+}
+
+function isLetterKey(key) {
+  return Object.prototype.hasOwnProperty.call(gameState.letterKeyboard, key);
+}
+
+function normalizeKey(key) {
+  var map = currentLanguage().normalize;
+  if (map && Object.prototype.hasOwnProperty.call(map, key)) {
+    return map[key];
+  }
+  return key;
+}
+
+var states={
   empty: 0,
   filled: 1,
   correct: 2,
@@ -22,7 +57,7 @@ const states={
   absent: 4,
   unused: 5
 };
-const stateStyles = ["empty", "filled", "correct", "present", "absent", "unused"];
+var stateStyles = ["empty", "filled", "correct", "present", "absent", "unused"];
 
 // The logging function
 function log(logStuff) {
@@ -69,14 +104,12 @@ function initGame() {
   
   // Initialize keyboard
   gameState.letterKeyboard = {};
-  var letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-  if(gameState.language===5){ // Swedish special letters
-    letters.push("Å");
-    letters.push("Ä");
-    letters.push("Ö");
-  }
-  for (var i = 0; i < letters.length; i++) {
-    gameState.letterKeyboard[letters[i]] = states.unused; // unused, present, correct, absent
+  var rows = currentLanguage().rows;
+  for (var r = 0; r < rows.length; r++) {
+    var letters = rows[r].split("");
+    for (var k = 0; k < letters.length; k++) {
+      gameState.letterKeyboard[letters[k]] = states.unused; // unused, present, correct, absent
+    }
   }
   
   // Select a random word
@@ -125,7 +158,7 @@ function handleKeyInput(key) {
     return;
   }
   
-  key = key.toUpperCase();
+  key = normalizeKey(key.toUpperCase());
   
   if (key === "BACKSPACE" || key === "←") {
     // Clear any existing message when backspace is pressed
@@ -135,7 +168,7 @@ function handleKeyInput(key) {
   } else if (key === "ENTER") {
     // Submit the current guess
     submitGuess();
-  } else if (/^[A-ZÅÄÖ]$/.test(key)) {
+  } else if (isLetterKey(key)) {
     // Clear any existing message when a new letter is added
     gameState.message = "";
     // Add letter to the current row
@@ -331,26 +364,6 @@ function updateGrid() {
   }
 }
 
-// Create a keyboard key button
-function createKeyButton(letter) {
-  var keyButton = document.createElement("button");
-  keyButton.className = "keyboard-key " + stateStyles[gameState.letterKeyboard[letter]];
-  
-  // Improved indicators for Kindle's black and white display
-  if (gameState.letterKeyboard[letter] === states.correct) {
-    keyButton.innerHTML = letter + "<span class='key-indicator correct-indicator'>■</span>";
-  } else if (gameState.letterKeyboard[letter] === states.present) {
-    keyButton.innerHTML = letter + "<span class='key-indicator present-indicator'>□</span>";
-  } else if (gameState.letterKeyboard[letter] === states.absent) {
-    keyButton.innerHTML = letter + "<span class='key-indicator absent-indicator'>×</span>";
-  } else {
-    keyButton.textContent = letter;
-  }
-  
-  keyButton.onclick = function() { handleKeyInput(letter); };
-  return keyButton;
-}
-
 // Update the keyboard display
 function updateKeyboard() {
   var keyboardElement = document.getElementById("keyboard");
@@ -358,24 +371,13 @@ function updateKeyboard() {
   
   keyboardElement.innerHTML = "";
   
-  // Row 1: Q-P
-  var row1 = "QWERTYUIOP".split("");
-  if(gameState.language===5){ // Swedish special letters
-    row1.push("Å");
+  var rows = currentLanguage().rows;
+  var last = rows.length - 1;
+  for (var r = 0; r < last; r++) {
+    keyboardElement.appendChild(createKeyboardRow(rows[r].split("")));
   }
-  var keyboardRow1 = createKeyboardRow(row1);
-  keyboardElement.appendChild(keyboardRow1);
   
-  // Row 2: A-L
-  var row2 = "ASDFGHJKL".split("");
-  if(gameState.language===5){
-    row2.push("Ö");
-    row2.push("Ä");
-  }
-  var keyboardRow2 = createKeyboardRow(row2);
-  keyboardElement.appendChild(keyboardRow2);
-  
-  // Row 3: Enter, Z-M, Backspace
+  // Last row: Enter, letters, Backspace
   var keyboardRow3 = document.createElement("div");
   keyboardRow3.className = "keyboard-row";
   
@@ -385,7 +387,7 @@ function updateKeyboard() {
   enterKey.onclick = function() { handleKeyInput("ENTER"); };
   keyboardRow3.appendChild(enterKey);
   
-  var row3 = "ZXCVBNM".split("");
+  var row3 = rows[last].split("");
   for (var i = 0; i < row3.length; i++) {
     var letter = row3[i];
     var keyButton = createKeyButton(letter);
@@ -536,7 +538,7 @@ function showCredits() {
       "<p><font size=\"2\">Game by <b><a href=\"https://kurizu.vercel.app/\">kurizu</a></b><br/>" +
       "Illusion engine by <b><a href=\"https://github.com/polish-penguin-dev/\">Penguins184</a></b><br/>"+
       "Additional development by <b><a href=\"https://github.com/kbarni\">kbarni</a></b><br/><br/>"+
-      "Word lists by:<br/>&nbsp;&nbsp;- English: <a href=\"https://github.com/seanpatlan/wordle-words\">Sean Patlan</a><br/>&nbsp;&nbsp;- French: <a href=\"https://github.com/scambier/mo-mo-motus\">Simon Cambier</a><br/>&nbsp;&nbsp;- German: <a href=\"https://github.com/octokatherine/word-master\">Katherine Oelsner</a><br/>&nbsp;&nbsp;- Spanish: <a href=\"https://github.com/jeheda\">jeheda</a><br/>&nbsp;&nbsp;- Portuguese: <a href=\"https://github.com/tilnoene\">Victor Santos</a></br>&nbsp;&nbsp;- Swedish: <a href=\"https://github.com/jsprolsson\">Jesper Olsson</a><br/>&nbsp;&nbsp;- Italian: <a href=\"https://github.com/napolux/paroleitaliane\"> Napolux</a><br/>&nbsp;&nbsp;- Latin: <a href=\"https://github.com/latinwordnet/latinwordnet-archive\"> LatinWord Net</a><br/>&nbsp;&nbsp;- Polish: <a href=\"https://github.com/Pepe-PL\">Pepe-PL</a> (<a href=\"https://github.com/Hugo0/wordle\">Hugo0/wordle</a>, <a href=\"https://sjp.pl/\">SJP.pl</a>, <a href=\"https://github.com/hermitdave/FrequencyWords\">hermitdave/FrequencyWords</a>)</font></p>";
+      "Word lists by:<br/>&nbsp;&nbsp;- English: <a href=\"https://github.com/seanpatlan/wordle-words\">Sean Patlan</a><br/>&nbsp;&nbsp;- French: <a href=\"https://github.com/scambier/mo-mo-motus\">Simon Cambier</a><br/>&nbsp;&nbsp;- German: <a href=\"https://github.com/octokatherine/word-master\">Katherine Oelsner</a><br/>&nbsp;&nbsp;- Spanish: <a href=\"https://github.com/jeheda\">jeheda</a><br/>&nbsp;&nbsp;- Portuguese: <a href=\"https://github.com/tilnoene\">Victor Santos</a></br>&nbsp;&nbsp;- Swedish: <a href=\"https://github.com/jsprolsson\">Jesper Olsson</a><br/>&nbsp;&nbsp;- Italian: <a href=\"https://github.com/napolux/paroleitaliane\"> Napolux</a><br/>&nbsp;&nbsp;- Latin: <a href=\"https://github.com/latinwordnet/latinwordnet-archive\"> LatinWord Net</a><br/>&nbsp;&nbsp;- Polish: <a href=\"https://github.com/Pepe-PL\">Pepe-PL</a> (<a href=\"https://github.com/Hugo0/wordle\">Hugo0/wordle</a>, <a href=\"https://sjp.pl/\">SJP.pl</a>, <a href=\"https://github.com/hermitdave/FrequencyWords\">hermitdave/FrequencyWords</a>)<br/>&nbsp;&nbsp;- Russian: <a href=\"https://github.com/Hugo0/wordle\">Hugo0/wordle</a>, <a href=\"https://github.com/hermitdave/FrequencyWords\">hermitdave/FrequencyWords</a>, <a href=\"https://github.com/no-plagiarism/pymorphy3\">pymorphy3</a></font></p>";
     creditsModal.style.display = "block";
   }
 }
@@ -555,8 +557,8 @@ function resetGame() {
 function changeLanguage() {
   var languageButton = document.getElementById("lang");
   if (languageButton) {
-    gameState.language = (gameState.language + 1) % languageList.length;
-    languageButton.textContent = languageList[gameState.language];
+    gameState.language = (gameState.language + 1) % languages.length;
+    languageButton.textContent = currentLanguage().name;
     initGame();
   }
 }
@@ -565,9 +567,10 @@ function changeLanguage() {
 function onPageLoad() {
   // Set up keyboard event listeners
   document.addEventListener("keydown", function(event) {
-    var key = event.key.toUpperCase();
+    if (!event.key) return;
+    var key = normalizeKey(event.key.toUpperCase());
     
-    if (key === "BACKSPACE" || key === "ENTER" || /^[A-ZÅÄÖ]$/.test(key)) {
+    if (key === "BACKSPACE" || key === "ENTER" || isLetterKey(key)) {
       handleKeyInput(key);
       event.preventDefault();
     }
