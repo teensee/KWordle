@@ -1,0 +1,16 @@
+# Vulgar words that pymorphy3 does not mark as Obsc; kept in accepted, excluded from targets
+блядь
+говно
+гомик
+дебил
+курва
+мразь
+мудак
+отсос
+падла
+срать
+стояк
+сучка
+херня
+хрень
+шлюха

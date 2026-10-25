@@ -348,14 +348,15 @@ h1 {
   }
   
   .keyboard-key {
-    min-width: 28px;
+    min-width: 24px;
     height: 40px;
     font-size: 14px;
-    margin: 0 4px 4px 0;
+    margin: 0 3px 4px 0;
+    padding: 0 2px;
   }
   
   .keyboard-key.wide-key {
-    min-width: 45px;
+    min-width: 40px;
     font-size: 16px;
   }
 }
@@ -491,10 +492,10 @@ h1 {
   }
   
   .keyboard-key {
-    min-width: 70px;
+    min-width: 66px;
     height: 75px;  
     font-size: 28px;
-    margin: 0 16px 16px 0; 
+    margin: 0 10px 16px 0; 
     border-radius: 8px;
     border-width: 2px;
   }
@@ -613,13 +614,13 @@ h1 {
   }
   
   .keyboard-key {
-    min-width: 70px;
+    min-width: 66px;
     height: 80px;
     font-size: 28px;
   }
   
   .keyboard-key.wide-key {
-    min-width: 140px;
+    min-width: 110px;
     font-size: 32px;
   }
   
